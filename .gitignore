@@ -1,0 +1,41 @@
+# OAuth and account-specific configuration
+credentials.json
+client_secret*.json
+token.json
+token*.json
+config.toml
+*.token
+
+# Local state and private mail samples
+*.sqlite*
+*.db*
+*.log
+logs/
+*.eml
+*.mbox
+mail_samples/
+private_data/
+
+# Python environments and generated files
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Downloaded model weights and caches
+.cache/
+.cache-huggingface/
+models/
+model_cache/
+huggingface/
+*.safetensors
+pytorch_model*.bin
+*.onnx
+
+# Private fixtures and local workspaces
+.superpowers/
+.worktrees/
+tests/fixtures/local/
