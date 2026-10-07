@@ -1,8 +1,9 @@
 [app]
 # false is the safe default. Set true only after reviewing dry-run proposals.
 apply_labels = false
-state_dir = "${LOCALAPPDATA}/LayaGmailLabeler"
-credentials_file = "${LOCALAPPDATA}/LayaGmailLabeler/credentials.json"
+# By default, configuration, credentials.json, and SQLite state use this
+# operating system's per-user application data directory. Optional absolute
+# path overrides can be set here.
 
 [polling]
 interval_seconds = 60

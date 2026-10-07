@@ -4,10 +4,11 @@ from __future__ import annotations
 
 import json
 import logging
-import platform
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
+
+from .credential_store import CredentialStoreError, credential_backend
 
 GMAIL_MODIFY_SCOPE = "https://www.googleapis.com/auth/gmail.modify"
 KEYRING_SERVICE = "LayaGmailLabeler"
@@ -29,22 +30,32 @@ class OAuthSetupError(RuntimeError):
     pass
 
 
-def _credential_backend() -> Any:
-    if platform.system() != "Windows":
-        raise OAuthSetupError("OAuth tokens are supported only through Windows Credential Manager.")
-    try:
-        from keyring.backends.Windows import WinVaultKeyring
+class CredentialStoreAccessError(OAuthSetupError):
+    pass
 
-        return WinVaultKeyring()
-    except Exception:
-        raise OAuthSetupError("Windows Credential Manager is unavailable; token storage was not attempted.") from None
+
+def _credential_backend() -> Any:
+    try:
+        return credential_backend()
+    except CredentialStoreError as error:
+        raise CredentialStoreAccessError(str(error)) from None
+
 
 def _save_credentials(credentials: Any) -> None:
     backend = _credential_backend()
+    serialized = credentials.to_json()
     try:
-        backend.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, credentials.to_json())
+        backend.set_password(KEYRING_SERVICE, KEYRING_ACCOUNT, serialized)
+        if backend.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT) != serialized:
+            raise CredentialStoreAccessError(
+                "Could not verify the OAuth token in the secure operating-system credential store."
+            )
+    except CredentialStoreAccessError:
+        raise
     except Exception:
-        raise OAuthSetupError("Could not save the OAuth token in Windows Credential Manager.") from None
+        raise CredentialStoreAccessError(
+            "Could not save the OAuth token in the secure operating-system credential store."
+        ) from None
 
 
 def _load_credentials() -> Any | None:
@@ -52,7 +63,9 @@ def _load_credentials() -> Any | None:
     try:
         serialized = backend.get_password(KEYRING_SERVICE, KEYRING_ACCOUNT)
     except Exception:
-        raise OAuthSetupError("Could not read the OAuth token from Windows Credential Manager.") from None
+        raise CredentialStoreAccessError(
+            "Could not read the OAuth token from the secure operating-system credential store."
+        ) from None
     if not serialized:
         return None
 
@@ -72,6 +85,8 @@ def _load_credentials() -> Any | None:
 
             credentials.refresh(Request())
             _save_credentials(credentials)
+        except OAuthSetupError:
+            raise
         except Exception:
             raise OAuthSetupError("Google authorization expired or was revoked; run setup again.") from None
     if not credentials.valid:
@@ -83,6 +98,8 @@ def authorize_user(credentials_file: Path, interactive: bool = False) -> Any:
     """Load or refresh local authorization, opening a browser only during setup."""
     try:
         saved = _load_credentials()
+    except CredentialStoreAccessError:
+        raise
     except OAuthSetupError:
         if not interactive:
             raise

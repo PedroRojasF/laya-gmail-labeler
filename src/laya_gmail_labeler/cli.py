@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 from .classifier import ClassificationUnavailable
+from .autostart import AutostartError, install_autostart, remove_autostart
 from .gmail import (
     GmailAPIError,
     OAuthSetupError,
@@ -50,6 +51,11 @@ def _build_parser() -> argparse.ArgumentParser:
 
     review = commands.add_parser("review-proposals", help="Show pending sender and subject details in this terminal.")
     review.add_argument("--limit", type=int, default=None, help="Optional maximum number of proposals to show.")
+
+    install = commands.add_parser("install-autostart", help="Start the dry-run poller at this user's desktop logon.")
+    install.add_argument("--apply", action="store_true", help="Allow the scheduled poller to add approved labels.")
+
+    commands.add_parser("remove-autostart", help="Stop and remove this user's automatic-startup poller.")
     return parser
 
 
@@ -168,6 +174,19 @@ def _watch(args: argparse.Namespace) -> int:
         time.sleep(config.interval_seconds)
 
 
+def _install_autostart(args: argparse.Namespace) -> int:
+    install_autostart(apply_labels=args.apply, config_path=args.config)
+    mode = "apply" if args.apply else "dry-run"
+    LOGGER.info("Automatic startup installed for this user in %s mode.", mode)
+    return 0
+
+
+def _remove_autostart() -> int:
+    remove_autostart()
+    LOGGER.info("Automatic startup removed for this user.")
+    return 0
+
+
 def _error_code(error: Exception) -> str:
     if isinstance(error, GmailOperationBlocked):
         return error.safe_code
@@ -175,6 +194,8 @@ def _error_code(error: Exception) -> str:
         return error.safe_code
     if isinstance(error, OAuthSetupError):
         return "oauth_error"
+    if isinstance(error, AutostartError):
+        return "autostart_error"
     if isinstance(error, SetupRequired):
         return "setup_required"
     if isinstance(error, ClassificationUnavailable):
@@ -194,6 +215,10 @@ def main(argv: list[str] | None = None) -> int:
             return _watch(args)
         if args.command == "review-proposals":
             return _review(args)
+        if args.command == "install-autostart":
+            return _install_autostart(args)
+        if args.command == "remove-autostart":
+            return _remove_autostart()
         LOGGER.error("Unknown command.")
         return 2
     except KeyboardInterrupt:
@@ -201,7 +226,7 @@ def main(argv: list[str] | None = None) -> int:
         return 130
     except Exception as error:
         code = _error_code(error)
-        if isinstance(error, (OAuthSetupError, SetupRequired)):
+        if isinstance(error, (OAuthSetupError, SetupRequired, AutostartError)):
             LOGGER.error("%s", str(error))
         elif code != "operation_error":
             LOGGER.error("Command failed (code=%s).", code)

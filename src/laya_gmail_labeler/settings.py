@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from platformdirs import user_data_path
+
 try:
     import tomllib
 except ModuleNotFoundError:  # Python 3.10
@@ -37,11 +39,8 @@ class AppConfig:
 
 
 def local_data_dir() -> Path:
-    """Return the per-user Windows app-data directory."""
-    root = os.environ.get("LOCALAPPDATA")
-    if not root:
-        raise RuntimeError("LOCALAPPDATA is unavailable; this app is intended for Windows.")
-    return Path(root) / "LayaGmailLabeler"
+    """Return the per-user application data directory for this operating system."""
+    return user_data_path("LayaGmailLabeler", appauthor=False, ensure_exists=True)
 
 
 def _expand_path(value: Any, field: str) -> Path:

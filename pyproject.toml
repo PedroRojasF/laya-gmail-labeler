@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "laya-gmail-labeler"
 version = "0.1.0"
-description = "Local-first Gmail labels using Laya on Windows"
+description = "Local-first Gmail labels using Laya on desktop systems"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -13,6 +13,7 @@ dependencies = [
   "google-api-python-client>=2,<3",
   "google-auth-oauthlib>=1.2,<2",
   "keyring>=25,<27",
+  "platformdirs>=4,<5",
   "tomli>=2,<3; python_version < '3.11'",
 ]
 
